@@ -1,0 +1,47 @@
+volumes:
+  z2m:
+  mosqitto_logs:
+  mosqitto_data:
+
+services:
+  ha:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    volumes:
+      - ${PWD}/ha/configuration.yaml:/config/configuration.yaml:ro
+      - ${PWD}/ha/packages:/config/packages
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "8123:8123" # frontend
+#      - "5353:5353/udp" # HomeKit
+#      - "21063:21063/tcp" #HomeKit
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: mosquitto
+    volumes:
+      - ${PWD}/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:rw
+      - mosqitto_logs:/mosquitto/logs
+      - mosqitto_data:/mosquitto/data
+    restart: unless-stopped
+
+  z2m:
+    image: koenkk/zigbee2mqtt:1.40.2
+    container_name: zigbee2mqtt
+    volumes:
+      - ${PWD}/z2m/configuration.yaml:/app/data/configuration.yaml:rw
+      - /run/udev:/run/udev:ro
+    ports:
+      - "8080:8080" # frontend
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    environment:
+      TZ: "Europe/Moscow"
+    depends_on:
+      - mosquitto
+    group_add:
+      - dialout
+    restart: unless-stopped
